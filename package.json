@@ -1,0 +1,14 @@
+{
+  "name": "caretrust-study",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Controlled live Gemini study for trust in healthcare AI answers",
+  "scripts": {
+    "start": "node frontend-server.js",
+    "start:frontend": "node frontend-server.js",
+    "start:backend": "node server.js"
+  },
+  "dependencies": {
+    "jsdom": "^28.1.0"
+  }
+}

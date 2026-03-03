@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CareTrust Study</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css?v=2" />
+</head>
+
+<body>
+  <div class="background-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <div class="page-shell">
+    <header class="hero fade-in">
+      <div class="hero-copy glass-card">
+        <p class="eyebrow"><span class="pulse-dot"></span> HCI Class Project</p>
+        <div class="status-banner" id="connection-banner">
+          <span class="status-dot" id="connection-dot"></span>
+          <span id="connection-text">Checking backend connection...</span>
+        </div>
+        <h1>How much do people <span class="text-gradient">trust</span> AI healthcare answers?</h1>
+        <p class="hero-text">
+          This prototype runs a controlled live study: participants review fixed healthcare prompts, generate a real
+          <strong class="glow-text">Gemini</strong> answer, rate how trustworthy it feels, and compare that trust
+          against a clinician note.
+        </p>
+        <div class="hero-actions">
+          <a class="button button-primary" href="#study">
+            <span>Start Study</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="icon">
+              <path d="M5 12h14m-7-7l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round" />
+            </svg>
+          </a>
+          <a class="button button-secondary" href="#about">View Method</a>
+        </div>
+      </div>
+      <aside class="hero-panel glass-card">
+        <p class="panel-label">Study Focus</p>
+        <ul class="metric-list">
+          <li>
+            <div class="metric-icon trust-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+            </div>
+            <div class="metric-info">
+              <strong>Trust</strong>
+              <span>How believable the AI feels</span>
+            </div>
+          </li>
+          <li>
+            <div class="metric-icon safety-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v20m-7-7a7 7 0 1114 0c0 5-7 11-7 11s-7-6-7-11z" />
+              </svg>
+            </div>
+            <div class="metric-info">
+              <strong>Safety</strong>
+              <span>Whether users would act on it</span>
+            </div>
+          </li>
+          <li>
+            <div class="metric-icon confidence-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M9 12l2 2 4-4" />
+              </svg>
+            </div>
+            <div class="metric-info">
+              <strong>Confidence</strong>
+              <span>How certain the user feels</span>
+            </div>
+          </li>
+        </ul>
+      </aside>
+    </header>
+
+    <main>
+      <section id="about" class="section intro-grid fade-in stagger-1">
+        <article class="glass-card">
+          <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path
+                d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+            </svg></div>
+          <p class="section-tag">Goal</p>
+          <h2>Measure trust, not just accuracy.</h2>
+          <p>People may trust an answer even when it is incomplete or risky. This interface tests that gap by showing AI
+            advice first, then a clinical reference note.</p>
+        </article>
+        <article class="glass-card">
+          <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <path d="M14 2v6h6" />
+              <path d="M16 13H8" />
+              <path d="M16 17H8" />
+              <path d="M10 9H8" />
+            </svg></div>
+          <p class="section-tag">Method</p>
+          <h2>Three healthcare scenarios.</h2>
+          <p>Each participant reads the same fixed prompts, requests a live Gemini answer, rates it on three scales, and
+            explains their decision in a short reflection.</p>
+        </article>
+        <article class="glass-card">
+          <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 3v18h18" />
+              <path d="m19 9-5 5-4-4-3 3" />
+            </svg></div>
+          <p class="section-tag">Output</p>
+          <h2>Instant local summary.</h2>
+          <p>The site calculates average trust levels across the scenarios so you can discuss patterns during your class
+            presentation.</p>
+        </article>
+      </section>
+
+      <section id="study" class="section study-layout fade-in stagger-2">
+        <div class="study-header">
+          <div>
+            <p class="section-tag">Interactive Study</p>
+            <h2 id="scenario-title" class="text-gradient">Scenario 1</h2>
+          </div>
+          <div class="pill-row">
+            <span class="pill" id="scenario-count">1 / 3</span>
+            <span class="pill pill-accent" id="scenario-risk">Risk Level</span>
+          </div>
+        </div>
+
+        <div class="study-grid">
+          <article class="glass-card prompt-card">
+            <div class="card-header">
+              <div class="header-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg></div>
+              <p class="label">Participant Prompt</p>
+            </div>
+            <p id="scenario-prompt" class="prompt-text"></p>
+          </article>
+
+          <article class="glass-card answer-card">
+            <div class="answer-header">
+              <div class="card-header">
+                <div class="header-icon gemini-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2">
+                    <path
+                      d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                  </svg></div>
+                <p class="label">Gemini Response</p>
+              </div>
+              <div class="answer-actions">
+                <button id="generate-answer-button" class="button button-primary small" type="button">
+                  <span class="btn-text">Generate Live Answer</span>
+                </button>
+                <button id="reference-toggle" class="button button-secondary small">
+                  Show Clinician Note
+                </button>
+              </div>
+            </div>
+
+            <div class="response-container">
+              <p id="answer-status" class="answer-status">Waiting for Gemini.</p>
+              <div class="answer-text-wrapper">
+                <p id="ai-answer" class="answer-text"></p>
+              </div>
+            </div>
+
+            <div id="reference-box" class="reference-box hidden slide-down">
+              <p class="label reference-label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2">
+                  <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                  <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                </svg> Clinician Reference</p>
+              <p id="reference-note"></p>
+            </div>
+          </article>
+
+          <form id="study-form" class="glass-card form-card">
+            <div class="card-header">
+              <div class="header-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg></div>
+              <p class="label">Trust Questionnaire</p>
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-header">
+                <label for="trust-range">How much do you trust this AI answer?</label>
+                <strong class="slider-value" id="trust-value">4</strong>
+              </div>
+              <input id="trust-range" name="trust" type="range" min="1" max="7" value="4" class="custom-slider" />
+              <div class="range-scale"><span>Low</span><span>High</span></div>
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-header">
+                <label for="safety-range">How safe would it be to follow this advice?</label>
+                <strong class="slider-value" id="safety-value">4</strong>
+              </div>
+              <input id="safety-range" name="safety" type="range" min="1" max="7" value="4"
+                class="custom-slider safety-slider" />
+              <div class="range-scale"><span>Unsafe</span><span>Safe</span></div>
+            </div>
+
+            <div class="slider-group">
+              <div class="slider-header">
+                <label for="confidence-range">How confident are you in your judgment?</label>
+                <strong class="slider-value" id="confidence-value">4</strong>
+              </div>
+              <input id="confidence-range" name="confidence" type="range" min="1" max="7" value="4"
+                class="custom-slider config-slider" />
+              <div class="range-scale"><span>Unsure</span><span>Certain</span></div>
+            </div>
+
+            <div class="textarea-group">
+              <label for="reflection">Why did you choose these ratings?</label>
+              <textarea id="reflection" name="reflection" rows="3"
+                placeholder="Example: The answer sounded clear, but it skipped warning signs..."></textarea>
+            </div>
+
+            <button class="button button-submit" type="submit" id="submit-button">
+              <span>Save Response</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </button>
+          </form>
+        </div>
+      </section>
+
+      <section class="section summary-section fade-in stagger-3">
+        <div class="summary-header">
+          <div>
+            <p class="section-tag">Study Summary</p>
+            <h2>Participant results</h2>
+          </div>
+          <div class="summary-actions">
+            <button class="button button-secondary small" id="export-csv-button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              CSV
+            </button>
+            <button class="button button-secondary small" id="export-pdf-button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+              PDF
+            </button>
+            <button class="button button-outline small" id="reset-button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+              Reset Demo
+            </button>
+          </div>
+        </div>
+
+        <div class="summary-grid">
+          <article class="glass-card stat-card">
+            <div class="stat-ring">
+              <h3 id="avg-trust">0.0</h3>
+            </div>
+            <p class="label">Avg Trust</p>
+          </article>
+          <article class="glass-card stat-card">
+            <div class="stat-ring safety-ring">
+              <h3 id="avg-safety">0.0</h3>
+            </div>
+            <p class="label">Avg Safety</p>
+          </article>
+          <article class="glass-card stat-card">
+            <div class="stat-ring config-ring">
+              <h3 id="avg-confidence">0.0</h3>
+            </div>
+            <p class="label">Avg Confidence</p>
+          </article>
+        </div>
+
+        <article class="glass-card responses-card">
+          <div class="answer-header">
+            <div class="card-header">
+              <div class="header-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg></div>
+              <p class="label">Recorded Responses</p>
+            </div>
+            <span id="response-count" class="pill pill-accent">0 completed</span>
+          </div>
+          <div id="responses-list" class="responses-list">
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10z" />
+              </svg>
+              <p>No responses yet. Complete the study scenarios to populate this section.</p>
+            </div>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script src="./script.js?v=2"></script>
+</body>
+
+</html>
