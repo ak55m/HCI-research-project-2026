@@ -8,12 +8,27 @@ loadEnvFile();
 const HOST = "127.0.0.1";
 const PORT = 3051;
 const AI_PROVIDER = "openrouter";
-const AI_MODEL = process.env.OPENROUTER_MODEL || "openrouter/free";
+const DEFAULT_OPENROUTER_MODELS = [
+  "qwen/qwen3-coder:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "nvidia/nemotron-3-nano-30b-a3b:free",
+  "arcee-ai/trinity-large-preview:free",
+  "openai/gpt-oss-20b:free",
+  "nousresearch/hermes-3-llama-3.1-405b:free",
+  "nvidia/llama-nemotron-embed-vl-1b-v2:free",
+  "openrouter/free",
+  "mistralai/mistral-small-3.1-24b-instruct:free",
+];
+const AI_MODEL = process.env.OPENROUTER_MODEL || DEFAULT_OPENROUTER_MODELS[0];
+const AI_FALLBACK_MODELS = parseModelList(process.env.OPENROUTER_FALLBACK_MODELS);
+const AI_MODEL_POOL = [AI_MODEL, ...AI_FALLBACK_MODELS].filter(
+  (model, index, models) => model && models.indexOf(model) === index
+);
 const AI_MAX_TOKENS = Number(process.env.OPENROUTER_MAX_TOKENS || 350);
 const AI_REASONING_EFFORT = process.env.OPENROUTER_REASONING_EFFORT || "medium";
 const AI_REASONING_ENABLED = process.env.OPENROUTER_REASONING_ENABLED
   ? /^true$/i.test(process.env.OPENROUTER_REASONING_ENABLED)
-  : AI_MODEL !== "openrouter/free";
+  : !/^openrouter\/free$|^stepfun\/step-3\.5-flash:free$/i.test(AI_MODEL);
 const SCENARIOS_PATH = path.join(ROOT, "scenarios.json");
 const DATA_DIR = path.join(ROOT, "data");
 const RESPONSES_PATH = path.join(DATA_DIR, "responses.json");
@@ -56,6 +71,17 @@ function loadEnvFile() {
       process.env[key] = value;
     }
   }
+}
+
+function parseModelList(value) {
+  if (!value) {
+    return DEFAULT_OPENROUTER_MODELS.slice(1);
+  }
+
+  return value
+    .split(",")
+    .map((model) => model.trim())
+    .filter(Boolean);
 }
 
 function getCorsHeaders(request) {
@@ -169,8 +195,8 @@ function buildGeminiPrompt(scenario) {
   ].join("\n");
 }
 
-function getCacheKey(scenarioId) {
-  return `${AI_PROVIDER}:${AI_MODEL}:${scenarioId}`;
+function getCacheKey(scenarioId, model) {
+  return `${AI_PROVIDER}:${model}:${scenarioId}`;
 }
 
 function flattenContentValue(value) {
@@ -244,8 +270,8 @@ function extractOpenRouterText(payload) {
 
   if (finishReason === "length") {
     const guidance = AI_REASONING_ENABLED
-      ? `Increase OPENROUTER_MAX_TOKENS or disable reasoning for ${AI_MODEL}.`
-      : `Increase OPENROUTER_MAX_TOKENS for ${AI_MODEL} or try a different model.`;
+      ? "Increase OPENROUTER_MAX_TOKENS or disable reasoning for this model."
+      : "Increase OPENROUTER_MAX_TOKENS or try a different model.";
     throw new Error(`OpenRouter stopped before a final answer was returned. ${guidance}`);
   }
 
@@ -261,14 +287,18 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function generateScenarioResponse(scenario) {
+function isReasoningAllowedForModel(model) {
+  return AI_REASONING_ENABLED && model !== "openrouter/free" && model !== "stepfun/step-3.5-flash:free";
+}
+
+async function generateScenarioResponse(scenario, model) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     throw new Error("Missing OPENROUTER_API_KEY. Add it to your environment or .env file.");
   }
 
   const requestBody = {
-    model: AI_MODEL,
+    model,
     messages: [
       {
         role: "user",
@@ -279,7 +309,7 @@ async function generateScenarioResponse(scenario) {
     max_tokens: AI_MAX_TOKENS,
   };
 
-  if (AI_REASONING_ENABLED) {
+  if (isReasoningAllowedForModel(model)) {
     requestBody.reasoning = {
       enabled: true,
       effort: AI_REASONING_EFFORT,
@@ -304,7 +334,7 @@ async function generateScenarioResponse(scenario) {
   const payload = await apiResponse.json();
   if (!apiResponse.ok) {
     const message = payload?.error?.message || "OpenRouter API request failed.";
-    logWarn("OpenRouter returned an error", `model=${AI_MODEL} scenario=${scenario.id} status=${apiResponse.status} message="${message}"`);
+    logWarn("OpenRouter returned an error", `model=${model} scenario=${scenario.id} status=${apiResponse.status} message="${message}"`);
     throw new Error(message);
   }
 
@@ -317,13 +347,13 @@ function isRetriableProviderError(message) {
   );
 }
 
-async function generateScenarioResponseWithRetry(scenario, maxAttempts = 3) {
+async function generateScenarioResponseWithRetry(scenario, model, maxAttempts = 3) {
   let lastError = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      logInfo("Generating AI response", `scenario=${scenario.id} model=${AI_MODEL} attempt=${attempt}/${maxAttempts}`);
-      return await generateScenarioResponse(scenario);
+      logInfo("Generating AI response", `scenario=${scenario.id} model=${model} attempt=${attempt}/${maxAttempts}`);
+      return await generateScenarioResponse(scenario, model);
     } catch (error) {
       lastError = error;
 
@@ -331,12 +361,43 @@ async function generateScenarioResponseWithRetry(scenario, maxAttempts = 3) {
         break;
       }
 
-      logWarn("Retrying AI response generation", `scenario=${scenario.id} model=${AI_MODEL} attempt=${attempt}/${maxAttempts} reason="${error.message}"`);
+      logWarn("Retrying AI response generation", `scenario=${scenario.id} model=${model} attempt=${attempt}/${maxAttempts} reason="${error.message}"`);
       await sleep(800 * attempt);
     }
   }
 
   throw lastError;
+}
+
+function findCachedAnswer(scenarioId, cachedAnswers) {
+  for (const model of AI_MODEL_POOL) {
+    const cacheKey = getCacheKey(scenarioId, model);
+    if (cachedAnswers[cacheKey]?.answer) {
+      return cachedAnswers[cacheKey];
+    }
+  }
+
+  return null;
+}
+
+async function generateScenarioResponseAcrossModels(scenario) {
+  let lastError = null;
+
+  for (const model of AI_MODEL_POOL) {
+    try {
+      const answer = await generateScenarioResponseWithRetry(scenario, model);
+      return {
+        answer,
+        model,
+        provider: AI_PROVIDER,
+      };
+    } catch (error) {
+      lastError = error;
+      logWarn("Model failed, moving to next fallback", `scenario=${scenario.id} model=${model} reason="${error.message}"`);
+    }
+  }
+
+  throw lastError || new Error("All configured OpenRouter models failed.");
 }
 
 async function handleGenerate(request, response) {
@@ -357,38 +418,39 @@ async function handleGenerate(request, response) {
     }
 
     const cachedAnswers = readGeneratedAnswers();
-    const cacheKey = getCacheKey(scenarioId);
-    if (cachedAnswers[cacheKey]?.answer) {
-      logInfo("Serving cached AI response", `scenario=${scenarioId} model=${AI_MODEL}`);
+    const cachedAnswer = findCachedAnswer(scenarioId, cachedAnswers);
+    if (cachedAnswer?.answer) {
+      logInfo("Serving cached AI response", `scenario=${scenarioId} model=${cachedAnswer.model || AI_MODEL}`);
       sendJson(request, response, 200, {
-        answer: cachedAnswers[cacheKey].answer,
-        model: cachedAnswers[cacheKey].model || AI_MODEL,
-        provider: cachedAnswers[cacheKey].provider || AI_PROVIDER,
+        answer: cachedAnswer.answer,
+        model: cachedAnswer.model || AI_MODEL,
+        provider: cachedAnswer.provider || AI_PROVIDER,
         cached: true,
-        generatedAt: cachedAnswers[cacheKey].generatedAt || null,
+        generatedAt: cachedAnswer.generatedAt || null,
       });
       return;
     }
 
-    const answer = await generateScenarioResponseWithRetry(scenario);
+    const generated = await generateScenarioResponseAcrossModels(scenario);
+    const cacheKey = getCacheKey(scenarioId, generated.model);
     cachedAnswers[cacheKey] = {
-      answer,
-      model: AI_MODEL,
-      provider: AI_PROVIDER,
+      answer: generated.answer,
+      model: generated.model,
+      provider: generated.provider,
       generatedAt: new Date().toISOString(),
     };
     writeGeneratedAnswers(cachedAnswers);
-    logInfo("Stored new AI response in cache", `scenario=${scenarioId} model=${AI_MODEL}`);
+    logInfo("Stored new AI response in cache", `scenario=${scenarioId} model=${generated.model}`);
 
     sendJson(request, response, 200, {
-      answer,
-      model: AI_MODEL,
-      provider: AI_PROVIDER,
+      answer: generated.answer,
+      model: generated.model,
+      provider: generated.provider,
       cached: false,
     });
   } catch (error) {
     if (error.message && /quota|rate limit|rate-limit|too many requests/i.test(error.message)) {
-      logWarn("Quota or rate limit reached", `model=${AI_MODEL} message="${error.message}"`);
+      logWarn("Quota or rate limit reached", `primaryModel=${AI_MODEL} message="${error.message}"`);
       sendJson(request, response, 429, {
         error: "OpenRouter quota or rate limit reached. Try again shortly.",
         quotaExceeded: true,
@@ -397,15 +459,15 @@ async function handleGenerate(request, response) {
     }
 
     if (error.message && /provider returned error/i.test(error.message)) {
-      logWarn("Provider returned error", `model=${AI_MODEL} message="${error.message}"`);
+      logWarn("Provider returned error", `primaryModel=${AI_MODEL} message="${error.message}"`);
       sendJson(request, response, 503, {
-        error: `OpenRouter provider error for ${AI_MODEL}. Try again in a few seconds.`,
+        error: `OpenRouter provider error across the configured free-model pool. Try again in a few seconds.`,
         providerError: true,
       });
       return;
     }
 
-    logError("Unhandled AI generation error", `model=${AI_MODEL} message="${error.message || "unknown"}"`);
+    logError("Unhandled AI generation error", `primaryModel=${AI_MODEL} message="${error.message || "unknown"}"`);
     sendJson(request, response, 500, {
       error: error.message || "Unable to generate an AI response.",
     });
@@ -487,10 +549,12 @@ function handleGetResponses(request, response) {
 function handleDeleteResponses(request, response) {
   try {
     writeStoredResponses([]);
-    logInfo("Cleared all stored participant responses");
+    writeGeneratedAnswers({});
+    logInfo("Cleared all stored participant responses and generated AI answers");
     sendJson(request, response, 200, {
       cleared: true,
       responses: [],
+      generatedAnswersCleared: true,
     });
   } catch (error) {
     logError("Failed to clear stored responses", `message="${error.message || "unknown"}"`);
@@ -537,6 +601,8 @@ const server = http.createServer((request, response) => {
       port: PORT,
       provider: AI_PROVIDER,
       model: AI_MODEL,
+      fallbackModels: AI_FALLBACK_MODELS,
+      modelPool: AI_MODEL_POOL,
       hasOpenRouterKey: Boolean(process.env.OPENROUTER_API_KEY),
       maxTokens: AI_MAX_TOKENS,
       reasoningEnabled: AI_REASONING_ENABLED,
@@ -566,6 +632,6 @@ const server = http.createServer((request, response) => {
 server.listen(PORT, HOST, () => {
   logInfo(
     "CareTrust backend running",
-    `url=http://${HOST}:${PORT} provider=${AI_PROVIDER} model=${AI_MODEL} reasoningEnabled=${AI_REASONING_ENABLED} reasoning=${AI_REASONING_EFFORT} maxTokens=${AI_MAX_TOKENS}`
+    `url=http://${HOST}:${PORT} provider=${AI_PROVIDER} model=${AI_MODEL} fallbacks=${AI_FALLBACK_MODELS.length} reasoningEnabled=${AI_REASONING_ENABLED} reasoning=${AI_REASONING_EFFORT} maxTokens=${AI_MAX_TOKENS}`
   );
 });

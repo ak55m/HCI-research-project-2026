@@ -18,25 +18,26 @@ This is a small HCI class project prototype for measuring how much users trust A
 
 1. Copy `/Users/akeem/github/HCI/.env.example` to `/Users/akeem/github/HCI/.env`
 2. Put your OpenRouter API key in `.env` as `OPENROUTER_API_KEY=...`
-3. Optionally set the model in `.env` as `OPENROUTER_MODEL=openrouter/free`
-4. Optionally set `OPENROUTER_MAX_TOKENS=350` to keep the response budget reasonable
-5. Set `OPENROUTER_REASONING_ENABLED=false` when using `openrouter/free` so the token budget goes to the final answer
-6. Optionally set `OPENROUTER_REASONING_EFFORT=medium`
-7. Start the backend on port 3051:
+3. Set the primary model in `.env` as `OPENROUTER_MODEL=qwen/qwen3-coder:free`
+4. Set fallback models in `.env` with `OPENROUTER_FALLBACK_MODELS=...` so the backend can fail over when one free route breaks
+5. Optionally set `OPENROUTER_MAX_TOKENS=350` to keep the response budget reasonable
+6. Set `OPENROUTER_REASONING_ENABLED=false` when using free models so the token budget goes to the final answer
+7. Optionally set `OPENROUTER_REASONING_EFFORT=medium`
+8. Start the backend on port 3051:
 
 ```bash
 cd /Users/akeem/github/HCI
 npm run start:backend
 ```
 
-8. In a second terminal, start the frontend on port 3050:
+9. In a second terminal, start the frontend on port 3050:
 
 ```bash
 cd /Users/akeem/github/HCI
 npm start
 ```
 
-9. Open `http://127.0.0.1:3050`
+10. Open `http://127.0.0.1:3050`
 
 After you record at least one response, use the summary section buttons to export:
 
@@ -44,6 +45,7 @@ After you record at least one response, use the summary section buttons to expor
 - `Export PDF` opens a printable report that you can save as PDF from the browser print dialog
 
 Saved responses are also written locally to `/Users/akeem/github/HCI/data/responses.json`, so they persist across refreshes and backend restarts on the same machine.
+Generated model answers are cached locally in `/Users/akeem/github/HCI/data/generated-answers.json`, and the cache stores the actual model that answered each scenario. Using `Clear All Responses` also clears that generated-answer cache so a new survey starts fresh.
 
 ## Health checks
 

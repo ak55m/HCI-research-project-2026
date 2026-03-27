@@ -472,7 +472,7 @@ studyForm.addEventListener("submit", async (event) => {
 
 resetButton.addEventListener("click", async () => {
   const shouldClear = window.confirm(
-    "Clear all saved responses and restart the study from Scenario 1?"
+    "Clear all saved responses, remove generated AI answers, and restart the study from Scenario 1?"
   );
   if (!shouldClear) {
     return;
@@ -489,7 +489,7 @@ resetButton.addEventListener("click", async () => {
   currentGeneratedAnswer = "";
   renderScenario();
   renderSummary();
-  answerStatus.textContent = "All saved responses were cleared. The study has restarted from Scenario 1.";
+  answerStatus.textContent = "All saved responses and generated AI answers were cleared. The study has restarted from Scenario 1.";
 });
 
 async function initializeStudy() {
