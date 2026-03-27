@@ -243,9 +243,10 @@ function extractOpenRouterText(payload) {
   const finishReason = choice?.finish_reason || payload?.finish_reason || "unknown";
 
   if (finishReason === "length") {
-    throw new Error(
-      `OpenRouter stopped before a final answer was returned. Increase OPENROUTER_MAX_TOKENS or disable reasoning for ${AI_MODEL}.`
-    );
+    const guidance = AI_REASONING_ENABLED
+      ? `Increase OPENROUTER_MAX_TOKENS or disable reasoning for ${AI_MODEL}.`
+      : `Increase OPENROUTER_MAX_TOKENS for ${AI_MODEL} or try a different model.`;
+    throw new Error(`OpenRouter stopped before a final answer was returned. ${guidance}`);
   }
 
   logWarn(
