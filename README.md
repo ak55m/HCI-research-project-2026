@@ -1,14 +1,14 @@
 # CareTrust Study
 
-This is a small HCI class project prototype for measuring how much users trust AI-generated healthcare answers. It runs as a localhost app with a frontend on port 3050 and a Gemini backend on port 3051.
+This is a small HCI class project prototype for measuring how much users trust AI-generated healthcare answers. It runs as a localhost app with a frontend on port 3050 and an OpenRouter-backed API on port 3051.
 
 ## What it includes
 
 - A landing section that explains the study purpose
-- Three fixed healthcare scenarios
-- Live Gemini responses generated per scenario through a separate local backend
+- Twelve fixed healthcare scenarios
+- Live AI model responses generated per scenario through a separate local backend
 - A trust questionnaire using 1-7 rating scales
-- A clinician reference note that can be revealed for comparison
+- A clinician guidance benchmark that can be revealed for comparison
 - A local summary view that calculates average trust, safety, and confidence
 - CSV export for recorded responses
 - PDF export through a print-friendly report window
@@ -17,22 +17,26 @@ This is a small HCI class project prototype for measuring how much users trust A
 ## How to run
 
 1. Copy `/Users/akeem/github/HCI/.env.example` to `/Users/akeem/github/HCI/.env`
-2. Put your Gemini API key in `.env` as `GEMINI_API_KEY=...`
-3. Start the backend on port 3051:
+2. Put your OpenRouter API key in `.env` as `OPENROUTER_API_KEY=...`
+3. Optionally set the model in `.env` as `OPENROUTER_MODEL=openrouter/free`
+4. Optionally set `OPENROUTER_MAX_TOKENS=350` to keep the response budget reasonable
+5. Set `OPENROUTER_REASONING_ENABLED=false` when using `openrouter/free` so the token budget goes to the final answer
+6. Optionally set `OPENROUTER_REASONING_EFFORT=medium`
+7. Start the backend on port 3051:
 
 ```bash
 cd /Users/akeem/github/HCI
 npm run start:backend
 ```
 
-4. In a second terminal, start the frontend on port 3050:
+8. In a second terminal, start the frontend on port 3050:
 
 ```bash
 cd /Users/akeem/github/HCI
 npm start
 ```
 
-5. Open `http://127.0.0.1:3050`
+9. Open `http://127.0.0.1:3050`
 
 After you record at least one response, use the summary section buttons to export:
 

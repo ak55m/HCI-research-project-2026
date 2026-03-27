@@ -4,6 +4,7 @@
   "private": true,
   "description": "Controlled live Gemini study for trust in healthcare AI answers",
   "scripts": {
+    "dev": "node dev-runner.js",
     "start": "node frontend-server.js",
     "start:frontend": "node frontend-server.js",
     "start:backend": "node server.js"

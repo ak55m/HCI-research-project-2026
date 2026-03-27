@@ -77,8 +77,8 @@ function setFormEnabled(enabled) {
 function setGenerateState(isLoading) {
   generateAnswerButton.disabled = isLoading;
   generateAnswerButton.textContent = isLoading
-    ? "Generating Gemini Response..."
-    : "Generate Live Gemini Response";
+    ? "Generating AI Model Response..."
+    : "Generate AI Model Response";
 }
 
 function setConnectionStatus(state, message) {
@@ -127,7 +127,7 @@ function exportResponsesAsCsv() {
     "risk_level",
     "participant_prompt",
     "ai_answer",
-    "clinician_reference",
+    "clinician_guidance",
     "trust",
     "safety",
     "confidence",
@@ -165,8 +165,8 @@ function buildPdfMarkup() {
           <h2>${response.title}</h2>
           <p><strong>Risk:</strong> ${response.risk}</p>
           <p><strong>Prompt:</strong> ${response.prompt}</p>
-          <p><strong>Gemini Response:</strong> ${response.aiAnswer}</p>
-          <p><strong>Clinician Reference:</strong> ${response.reference}</p>
+          <p><strong>AI Model Response:</strong> ${response.aiAnswer}</p>
+          <p><strong>Clinician Guidance:</strong> ${response.reference}</p>
           <p><strong>Trust:</strong> ${response.trust} / 7</p>
           <p><strong>Safety:</strong> ${response.safety} / 7</p>
           <p><strong>Confidence:</strong> ${response.confidence} / 7</p>
@@ -263,11 +263,11 @@ function renderScenario() {
   scenarioRisk.textContent = scenario.risk;
   scenarioPrompt.textContent = scenario.prompt;
   aiAnswer.textContent =
-    "Generate a live Gemini response for this fixed healthcare prompt, then rate how much you trust it.";
-  answerStatus.textContent = "Waiting for Gemini.";
+    "Generate a live AI model response for this fixed healthcare prompt, then rate how much you trust it.";
+  answerStatus.textContent = "Waiting for AI model response.";
   referenceNote.textContent = scenario.reference;
   referenceBox.classList.add("hidden");
-  referenceToggle.textContent = "Show Clinician Note";
+  referenceToggle.textContent = "Show Clinician Guidance";
   studyForm.reset();
   setRangeLabels();
   setFormEnabled(false);
@@ -381,7 +381,7 @@ async function generateLiveAnswer() {
 
   setGenerateState(true);
   setFormEnabled(false);
-  answerStatus.textContent = "Requesting Gemini...";
+  answerStatus.textContent = "Requesting AI model response...";
   aiAnswer.textContent = "Generating response...";
 
   try {
@@ -395,19 +395,22 @@ async function generateLiveAnswer() {
 
     const payload = await response.json();
     if (!response.ok) {
-      throw new Error(payload.error || "Gemini request failed.");
+      throw new Error(payload.error || "AI model request failed.");
     }
 
     currentGeneratedAnswer = payload.answer;
     aiAnswer.textContent = payload.answer;
-    answerStatus.textContent = `Generated with ${payload.model}.`;
+    answerStatus.textContent = payload.cached
+      ? `Loaded cached ${payload.provider || "AI"} response from ${payload.model}.`
+      : `Generated with ${payload.provider || "AI"} using ${payload.model}.`;
     generateAnswerButton.disabled = true;
-    generateAnswerButton.textContent = "Gemini Response Ready";
+    generateAnswerButton.textContent = payload.cached
+      ? "Cached AI Response Ready"
+      : "AI Response Ready";
     setFormEnabled(true);
   } catch (error) {
     currentGeneratedAnswer = "";
-    aiAnswer.textContent =
-      "The live Gemini response could not be generated. Check your server and API key, then try again.";
+    aiAnswer.textContent = error.message;
     answerStatus.textContent = error.message;
     setGenerateState(false);
   }
@@ -416,7 +419,7 @@ async function generateLiveAnswer() {
 referenceToggle.addEventListener("click", () => {
   const shouldShow = referenceBox.classList.contains("hidden");
   referenceBox.classList.toggle("hidden");
-  referenceToggle.textContent = shouldShow ? "Hide Clinician Note" : "Show Clinician Note";
+  referenceToggle.textContent = shouldShow ? "Hide Clinician Guidance" : "Show Clinician Guidance";
 });
 
 [trustRange, safetyRange, confidenceRange].forEach((input) =>
@@ -468,6 +471,13 @@ studyForm.addEventListener("submit", async (event) => {
 });
 
 resetButton.addEventListener("click", async () => {
+  const shouldClear = window.confirm(
+    "Clear all saved responses and restart the study from Scenario 1?"
+  );
+  if (!shouldClear) {
+    return;
+  }
+
   try {
     await clearStoredResponses();
   } catch (error) {
@@ -479,6 +489,7 @@ resetButton.addEventListener("click", async () => {
   currentGeneratedAnswer = "";
   renderScenario();
   renderSummary();
+  answerStatus.textContent = "All saved responses were cleared. The study has restarted from Scenario 1.";
 });
 
 async function initializeStudy() {

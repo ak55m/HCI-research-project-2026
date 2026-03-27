@@ -7,10 +7,17 @@ loadEnvFile();
 
 const HOST = "127.0.0.1";
 const PORT = 3051;
-const GEMINI_MODEL = "gemini-2.5-flash";
+const AI_PROVIDER = "openrouter";
+const AI_MODEL = process.env.OPENROUTER_MODEL || "openrouter/free";
+const AI_MAX_TOKENS = Number(process.env.OPENROUTER_MAX_TOKENS || 350);
+const AI_REASONING_EFFORT = process.env.OPENROUTER_REASONING_EFFORT || "medium";
+const AI_REASONING_ENABLED = process.env.OPENROUTER_REASONING_ENABLED
+  ? /^true$/i.test(process.env.OPENROUTER_REASONING_ENABLED)
+  : AI_MODEL !== "openrouter/free";
 const SCENARIOS_PATH = path.join(ROOT, "scenarios.json");
 const DATA_DIR = path.join(ROOT, "data");
 const RESPONSES_PATH = path.join(DATA_DIR, "responses.json");
+const GENERATED_ANSWERS_PATH = path.join(DATA_DIR, "generated-answers.json");
 const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:3000",
   "http://localhost:3000",
@@ -23,6 +30,7 @@ const ALLOWED_ORIGINS = new Set([
 const scenarios = JSON.parse(fs.readFileSync(SCENARIOS_PATH, "utf8"));
 const scenarioMap = new Map(scenarios.map((scenario) => [scenario.id, scenario]));
 ensureResponseStore();
+ensureGeneratedAnswerStore();
 
 function loadEnvFile() {
   const envPath = path.join(ROOT, ".env");
@@ -57,6 +65,21 @@ function getCorsHeaders(request) {
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
   };
+}
+
+function logInfo(message, details = "") {
+  const suffix = details ? ` ${details}` : "";
+  console.log(`[${new Date().toISOString()}] ${message}${suffix}`);
+}
+
+function logWarn(message, details = "") {
+  const suffix = details ? ` ${details}` : "";
+  console.warn(`[${new Date().toISOString()}] ${message}${suffix}`);
+}
+
+function logError(message, details = "") {
+  const suffix = details ? ` ${details}` : "";
+  console.error(`[${new Date().toISOString()}] ${message}${suffix}`);
 }
 
 function sendJson(request, response, statusCode, payload) {
@@ -100,6 +123,13 @@ function ensureResponseStore() {
   }
 }
 
+function ensureGeneratedAnswerStore() {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (!fs.existsSync(GENERATED_ANSWERS_PATH)) {
+    fs.writeFileSync(GENERATED_ANSWERS_PATH, "{}\n", "utf8");
+  }
+}
+
 function readStoredResponses() {
   ensureResponseStore();
   const raw = fs.readFileSync(RESPONSES_PATH, "utf8");
@@ -110,6 +140,18 @@ function readStoredResponses() {
 function writeStoredResponses(responses) {
   ensureResponseStore();
   fs.writeFileSync(RESPONSES_PATH, `${JSON.stringify(responses, null, 2)}\n`, "utf8");
+}
+
+function readGeneratedAnswers() {
+  ensureGeneratedAnswerStore();
+  const raw = fs.readFileSync(GENERATED_ANSWERS_PATH, "utf8");
+  const parsed = JSON.parse(raw);
+  return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+}
+
+function writeGeneratedAnswers(answers) {
+  ensureGeneratedAnswerStore();
+  fs.writeFileSync(GENERATED_ANSWERS_PATH, `${JSON.stringify(answers, null, 2)}\n`, "utf8");
 }
 
 function buildGeminiPrompt(scenario) {
@@ -127,55 +169,173 @@ function buildGeminiPrompt(scenario) {
   ].join("\n");
 }
 
-function extractGeminiText(payload) {
-  const parts = payload?.candidates?.[0]?.content?.parts || [];
-  const text = parts
-    .map((part) => part.text || "")
-    .join("\n")
-    .trim();
+function getCacheKey(scenarioId) {
+  return `${AI_PROVIDER}:${AI_MODEL}:${scenarioId}`;
+}
 
-  if (!text) {
-    throw new Error("Gemini returned no text.");
+function flattenContentValue(value) {
+  if (!value) {
+    return "";
   }
 
-  return text;
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === "string") {
+          return item;
+        }
+
+        if (item && typeof item === "object") {
+          return [
+            item.text,
+            item.content,
+            item.output_text,
+            item.value,
+          ]
+            .filter((part) => typeof part === "string" && part.trim())
+            .join(" ");
+        }
+
+        return "";
+      })
+      .join(" ")
+      .trim();
+  }
+
+  if (typeof value === "object") {
+    return [
+      value.text,
+      value.content,
+      value.output_text,
+      value.value,
+    ]
+      .filter((part) => typeof part === "string" && part.trim())
+      .join(" ")
+      .trim();
+  }
+
+  return "";
+}
+
+function extractOpenRouterText(payload) {
+  const candidateValues = [
+    payload?.choices?.[0]?.message?.content,
+    payload?.choices?.[0]?.message,
+    payload?.choices?.[0]?.content,
+    payload?.choices?.[0]?.text,
+    payload?.message?.content,
+    payload?.output_text,
+    payload?.text,
+  ];
+
+  for (const candidate of candidateValues) {
+    const text = flattenContentValue(candidate);
+    if (text) {
+      return text;
+    }
+  }
+
+  const choice = payload?.choices?.[0];
+  const finishReason = choice?.finish_reason || payload?.finish_reason || "unknown";
+
+  if (finishReason === "length") {
+    throw new Error(
+      `OpenRouter stopped before a final answer was returned. Increase OPENROUTER_MAX_TOKENS or disable reasoning for ${AI_MODEL}.`
+    );
+  }
+
+  logWarn(
+    "OpenRouter returned an unexpected payload shape",
+    `finishReason=${finishReason} hasChoices=${Boolean(payload?.choices?.length)} keys=${Object.keys(payload || {}).join(",")}`
+  );
+
+  throw new Error("OpenRouter returned no text.");
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function generateScenarioResponse(scenario) {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    throw new Error("Missing GEMINI_API_KEY. Add it to your environment or .env file.");
+    throw new Error("Missing OPENROUTER_API_KEY. Add it to your environment or .env file.");
+  }
+
+  const requestBody = {
+    model: AI_MODEL,
+    messages: [
+      {
+        role: "user",
+        content: buildGeminiPrompt(scenario),
+      },
+    ],
+    temperature: 0.4,
+    max_tokens: AI_MAX_TOKENS,
+  };
+
+  if (AI_REASONING_ENABLED) {
+    requestBody.reasoning = {
+      enabled: true,
+      effort: AI_REASONING_EFFORT,
+      exclude: true,
+    };
   }
 
   const apiResponse = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
+    "https://openrouter.ai/api/v1/chat/completions",
     {
       method: "POST",
       headers: {
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        "x-goog-api-key": apiKey,
+        "HTTP-Referer": "http://localhost:3050",
+        "X-Title": "CareTrust Study",
       },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: buildGeminiPrompt(scenario),
-              },
-            ],
-          },
-        ],
-      }),
+      body: JSON.stringify(requestBody),
     }
   );
 
   const payload = await apiResponse.json();
   if (!apiResponse.ok) {
-    const message = payload?.error?.message || "Gemini API request failed.";
+    const message = payload?.error?.message || "OpenRouter API request failed.";
+    logWarn("OpenRouter returned an error", `model=${AI_MODEL} scenario=${scenario.id} status=${apiResponse.status} message="${message}"`);
     throw new Error(message);
   }
 
-  return extractGeminiText(payload);
+  return extractOpenRouterText(payload);
+}
+
+function isRetriableProviderError(message) {
+  return /provider returned error|rate limit|quota|too many requests|temporarily unavailable|overloaded/i.test(
+    message || ""
+  );
+}
+
+async function generateScenarioResponseWithRetry(scenario, maxAttempts = 3) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      logInfo("Generating AI response", `scenario=${scenario.id} model=${AI_MODEL} attempt=${attempt}/${maxAttempts}`);
+      return await generateScenarioResponse(scenario);
+    } catch (error) {
+      lastError = error;
+
+      if (!isRetriableProviderError(error.message) || attempt === maxAttempts) {
+        break;
+      }
+
+      logWarn("Retrying AI response generation", `scenario=${scenario.id} model=${AI_MODEL} attempt=${attempt}/${maxAttempts} reason="${error.message}"`);
+      await sleep(800 * attempt);
+    }
+  }
+
+  throw lastError;
 }
 
 async function handleGenerate(request, response) {
@@ -195,14 +355,58 @@ async function handleGenerate(request, response) {
       return;
     }
 
-    const answer = await generateScenarioResponse(scenario);
+    const cachedAnswers = readGeneratedAnswers();
+    const cacheKey = getCacheKey(scenarioId);
+    if (cachedAnswers[cacheKey]?.answer) {
+      logInfo("Serving cached AI response", `scenario=${scenarioId} model=${AI_MODEL}`);
+      sendJson(request, response, 200, {
+        answer: cachedAnswers[cacheKey].answer,
+        model: cachedAnswers[cacheKey].model || AI_MODEL,
+        provider: cachedAnswers[cacheKey].provider || AI_PROVIDER,
+        cached: true,
+        generatedAt: cachedAnswers[cacheKey].generatedAt || null,
+      });
+      return;
+    }
+
+    const answer = await generateScenarioResponseWithRetry(scenario);
+    cachedAnswers[cacheKey] = {
+      answer,
+      model: AI_MODEL,
+      provider: AI_PROVIDER,
+      generatedAt: new Date().toISOString(),
+    };
+    writeGeneratedAnswers(cachedAnswers);
+    logInfo("Stored new AI response in cache", `scenario=${scenarioId} model=${AI_MODEL}`);
+
     sendJson(request, response, 200, {
       answer,
-      model: GEMINI_MODEL,
+      model: AI_MODEL,
+      provider: AI_PROVIDER,
+      cached: false,
     });
   } catch (error) {
+    if (error.message && /quota|rate limit|rate-limit|too many requests/i.test(error.message)) {
+      logWarn("Quota or rate limit reached", `model=${AI_MODEL} message="${error.message}"`);
+      sendJson(request, response, 429, {
+        error: "OpenRouter quota or rate limit reached. Try again shortly.",
+        quotaExceeded: true,
+      });
+      return;
+    }
+
+    if (error.message && /provider returned error/i.test(error.message)) {
+      logWarn("Provider returned error", `model=${AI_MODEL} message="${error.message}"`);
+      sendJson(request, response, 503, {
+        error: `OpenRouter provider error for ${AI_MODEL}. Try again in a few seconds.`,
+        providerError: true,
+      });
+      return;
+    }
+
+    logError("Unhandled AI generation error", `model=${AI_MODEL} message="${error.message || "unknown"}"`);
     sendJson(request, response, 500, {
-      error: error.message || "Unable to generate a Gemini response.",
+      error: error.message || "Unable to generate an AI response.",
     });
   }
 }
@@ -254,11 +458,13 @@ async function handleCreateResponse(request, response) {
     }
 
     writeStoredResponses(storedResponses);
+    logInfo("Saved participant response", `scenario=${responseRecord.id} total=${storedResponses.length}`);
     sendJson(request, response, 201, {
       saved: true,
       responses: storedResponses,
     });
   } catch (error) {
+    logError("Failed to save participant response", `message="${error.message || "unknown"}"`);
     sendJson(request, response, 500, {
       error: error.message || "Unable to save response.",
     });
@@ -280,11 +486,13 @@ function handleGetResponses(request, response) {
 function handleDeleteResponses(request, response) {
   try {
     writeStoredResponses([]);
+    logInfo("Cleared all stored participant responses");
     sendJson(request, response, 200, {
       cleared: true,
       responses: [],
     });
   } catch (error) {
+    logError("Failed to clear stored responses", `message="${error.message || "unknown"}"`);
     sendJson(request, response, 500, {
       error: error.message || "Unable to clear stored responses.",
     });
@@ -326,8 +534,12 @@ const server = http.createServer((request, response) => {
       status: "ok",
       service: "caretrust-backend",
       port: PORT,
-      model: GEMINI_MODEL,
-      hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
+      provider: AI_PROVIDER,
+      model: AI_MODEL,
+      hasOpenRouterKey: Boolean(process.env.OPENROUTER_API_KEY),
+      maxTokens: AI_MAX_TOKENS,
+      reasoningEnabled: AI_REASONING_ENABLED,
+      reasoningEffort: AI_REASONING_EFFORT,
     });
     return;
   }
@@ -351,5 +563,8 @@ const server = http.createServer((request, response) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`CareTrust backend running at http://${HOST}:${PORT}`);
+  logInfo(
+    "CareTrust backend running",
+    `url=http://${HOST}:${PORT} provider=${AI_PROVIDER} model=${AI_MODEL} reasoningEnabled=${AI_REASONING_ENABLED} reasoning=${AI_REASONING_EFFORT} maxTokens=${AI_MAX_TOKENS}`
+  );
 });

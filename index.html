@@ -30,8 +30,8 @@
         </div>
         <h1>How much do people <span class="text-gradient">trust</span> AI healthcare answers?</h1>
         <p class="hero-text">
-          This prototype runs a controlled live study: participants review fixed healthcare prompts, generate a real
-          <strong class="glow-text">Gemini</strong> answer, rate how trustworthy it feels, and compare that trust
+          This prototype runs a controlled live study: participants review fixed healthcare prompts, generate an
+          <strong class="glow-text">AI model</strong> answer, rate how trustworthy it feels, and compare that trust
           against a clinician note.
         </p>
         <div class="hero-actions">
@@ -96,7 +96,7 @@
           <p class="section-tag">Goal</p>
           <h2>Measure trust, not just accuracy.</h2>
           <p>People may trust an answer even when it is incomplete or risky. This interface tests that gap by showing AI
-            advice first, then a clinical reference note.</p>
+            advice first, then a clinician guidance benchmark.</p>
         </article>
         <article class="glass-card">
           <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -107,9 +107,9 @@
               <path d="M10 9H8" />
             </svg></div>
           <p class="section-tag">Method</p>
-          <h2>Three healthcare scenarios.</h2>
-          <p>Each participant reads the same fixed prompts, requests a live Gemini answer, rates it on three scales, and
-            explains their decision in a short reflection.</p>
+          <h2>Twelve healthcare scenarios.</h2>
+          <p>Each participant reads the same twelve fixed prompts, requests a live AI model answer for each one, rates it
+            on three scales, and explains their decision in a short reflection.</p>
         </article>
         <article class="glass-card">
           <div class="card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -130,7 +130,7 @@
             <h2 id="scenario-title" class="text-gradient">Scenario 1</h2>
           </div>
           <div class="pill-row">
-            <span class="pill" id="scenario-count">1 / 3</span>
+            <span class="pill" id="scenario-count">1 / 12</span>
             <span class="pill pill-accent" id="scenario-risk">Risk Level</span>
           </div>
         </div>
@@ -155,20 +155,20 @@
                     <path
                       d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                   </svg></div>
-                <p class="label">Gemini Response</p>
+                <p class="label">AI Model Response</p>
               </div>
               <div class="answer-actions">
                 <button id="generate-answer-button" class="button button-primary small" type="button">
                   <span class="btn-text">Generate Live Answer</span>
                 </button>
                 <button id="reference-toggle" class="button button-secondary small">
-                  Show Clinician Note
+                  Show Clinician Guidance
                 </button>
               </div>
             </div>
 
             <div class="response-container">
-              <p id="answer-status" class="answer-status">Waiting for Gemini.</p>
+              <p id="answer-status" class="answer-status">Waiting for AI model response.</p>
               <div class="answer-text-wrapper">
                 <p id="ai-answer" class="answer-text"></p>
               </div>
@@ -179,7 +179,7 @@
                   stroke-width="2">
                   <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
                   <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
-                </svg> Clinician Reference</p>
+                </svg> Clinician Guidance</p>
               <p id="reference-note"></p>
             </div>
           </article>
@@ -268,7 +268,7 @@
                 <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
                 <path d="M3 3v5h5" />
               </svg>
-              Reset Demo
+              Clear All Responses
             </button>
           </div>
         </div>

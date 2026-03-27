@@ -1,6 +1,7 @@
 .env
 .env.local
 .env.*.local
+.DS_Store
 node_modules/
 data/responses.json
-
+data/generated-answers.json
